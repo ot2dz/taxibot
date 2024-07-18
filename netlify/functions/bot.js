@@ -1,15 +1,26 @@
 const express = require('express');
 const serverless = require('serverless-http');
 const bodyParser = require('body-parser');
-const { customerBot } = require('../../src/bots/customerBot');
-const { driverBot } = require('../../src/bots/driverBot');
+
+let customerBot, driverBot;
+try {
+  const customerBotModule = require('../../src/bots/customerBot');
+  const driverBotModule = require('../../src/bots/driverBot');
+  customerBot = customerBotModule.customerBot;
+  driverBot = driverBotModule.driverBot;
+} catch (error) {
+  console.error('Error importing bot modules:', error);
+}
 
 const app = express();
 app.use(bodyParser.json());
 
-// ميدلوير للتحقق من الأمان
+// Middleware для проверки безопасности
 const securityMiddleware = (req, res, next) => {
+  console.log('Received headers:', JSON.stringify(req.headers));
   const secretToken = req.headers['x-telegram-bot-api-secret-token'];
+  console.log('Received secret token:', secretToken);
+  console.log('Expected secret token:', process.env.WEBHOOK_SECRET_TOKEN);
   if (secretToken !== process.env.WEBHOOK_SECRET_TOKEN) {
     console.error('Invalid secret token');
     return res.sendStatus(403);
@@ -29,12 +40,17 @@ app.post('/', (req, res) => {
   }
 
   let bot;
-  if (chatId.toString().startsWith('1')) { // افتراض أن معرفات العملاء تبدأ بـ 1
+  if (chatId.toString().startsWith('1')) {
     bot = customerBot;
     console.log('Processing customer update');
   } else {
     bot = driverBot;
     console.log('Processing driver update');
+  }
+
+  if (!bot) {
+    console.error('Bot not initialized');
+    return res.sendStatus(500);
   }
 
   try {
@@ -46,12 +62,10 @@ app.post('/', (req, res) => {
   }
 });
 
-// للتحقق من أن الخدمة تعمل
 app.get('/', (req, res) => {
   res.send('Bot service is running!');
 });
 
-// معالجة الأخطاء
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).send('Internal Server Error');
