@@ -47,11 +47,17 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   
   if (process.env.NODE_ENV === 'production') {
+    // استخدام Webhook في بيئة الإنتاج فقط
     await setupWebhook(customerBot.bot, config.CUSTOMER_BOT_TOKEN);
     await setupWebhook(driverBot.bot, config.DRIVER_BOT_TOKEN);
     await setupWebhook(adminBot, config.ADMIN_BOT_TOKEN);
   } else {
+    // استخدام Long Polling فقط في بيئة التطوير
     console.log('Running in development mode. Using long polling for bots.');
+    customerBot.bot.deleteWebhook(); // تأكد من إلغاء Webhook
+    driverBot.bot.deleteWebhook();   // تأكد من إلغاء Webhook
+    adminBot.deleteWebhook();        // تأكد من إلغاء Webhook
+
     customerBot.bot.startPolling();
     driverBot.bot.startPolling();
     adminBot.startPolling();
